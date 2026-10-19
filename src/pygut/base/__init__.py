@@ -54,19 +54,28 @@ class Collider:
             return self.pos.x + self_vect.x >= other.pos.x + other_vect.x
         else:
             return self.pos.x + self_vect.x <= other.pos.x + other_vect.x
+    
     def _truncated_line(self, other: 'Collider') -> pygame.math.Vector2: ...
 
 class Screen(pygame.Surface):
     '''An object to be drawn to the screen. Has a collection of GameElements and UIElements that are drawn to the screen.'''
-    def __init__(self, bgcolor, elements: Sequence[_element] | None = None):
+    def __init__(self, bg: pygame.color.Color | pygame.Surface, elements: Sequence[_element] | None = None, **kwargs):
         self.elements = LayeredDirty()
-        self.bgcolor = bgcolor
+        self.bg = bg
+        
+        size: tuple[int, int] = pygame.display.get_window_size()
+        
+        if kwargs['overlay'] == True:
+            assert type(kwargs['size']) is tuple[int, int]
+            size = kwargs['size']
+            
+        super().__init__(size, flags=kwargs['flags'])
         
         if not elements is None:
             for e in elements:
-                kwargs = {}
-                if type(e) is UIElement: kwargs['layer'] = 1
-                self.elements.add(e, kwargs)
+                args = {}
+                if type(e) is UIElement: args['layer'] = 1
+                self.elements.add(e, args)
     
     def update(self, dt):
         self.elements.update(dt=dt)
