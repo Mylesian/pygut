@@ -4,12 +4,12 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pygut"
-description = "pygame utility package so I don't have to rewrite all my code every project. important to note that much of the code is untested and so possibly contains bugs which will be fixed in a later release."
+description = "pygame utility package so I don't have to rewrite all my code every project. important to note that much of the code is untested and so possibly contains bugs which will be fixed in later releases."
 authors = [
   { name="Myles Godfrey", email="mylesgodfrey17@gmail.com" },
 ]
-version = "3.0.0"
-requires-python = ">=3.10"
+version = "3.2.0"
+requires-python = ">=3.9"
 dependencies = [
     "pygame"
 ]

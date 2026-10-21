@@ -1,7 +1,7 @@
 import pygame
 from pygame._sdl2 import Window
 import asyncio
-from base import Screen, Timer
+from pygut.base import Screen, Timer
 
 class Application:
     '''Basic application window. Shows an optional start_screen on startup.'''
@@ -38,19 +38,18 @@ class Application:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 self.running = False
-                
-        mouse_buttons = pygame.mouse.get_pressed()
-        if mouse_buttons[0]:
-            if self.mouse_down: self.mouse_just_down = False
-            else: self.mouse_just_down = True
-            
-            self.mouse_down = True
-        else:
-            self.mouse_down = False
-            self.mouse_just_down = False
         
-                
         if not self.screen is None:
+            mouse_buttons = pygame.mouse.get_pressed()
+            if mouse_buttons[0]:
+                if self.mouse_down: self.mouse_just_down = False
+                else: self.mouse_just_down = True
+                
+                self.mouse_down = True
+            else:
+                self.mouse_down = False
+                self.mouse_just_down = False
+            
             if type(self.screen.bg) is pygame.color.Color:
                 self.showing.fill(self.screen.bg, self.screen.get_rect(center=(self.showing.get_width() / 2,
                                                                                 self.showing.get_height() / 2)))
@@ -58,9 +57,13 @@ class Application:
                 self.showing.blit(self.screen.bg, (self.showing.get_width() / 2 - self.screen.get_width(),
                                                     self.showing.get_height() / 2 - self.screen.get_height()))
             
-            self.update(dt, mouse_buttons=mouse_buttons, m1_just_down=self.mouse_just_down, keys_pressed=pygame.key.get_pressed())
+            self.update(dt, mouse_buttons=mouse_buttons, m1_just_down=self.mouse_just_down, keys_pressed=pygame.key.get_pressed(),
+                            game_elements=self.screen.game_elements, ui_elements=self.screen.ui_elements)
             updated = self.screen.elements.draw(self.screen)
             pygame.display.update(updated)
+        else:
+            self.showing.fill((0, 0, 0))
+            pygame.display.flip()
 
     def run(self):
         '''Runs the game loop. Framerate is set to whatever was specified on object creation. Calls pygame.quit() when the loop ends.'''
