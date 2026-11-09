@@ -5,7 +5,7 @@ from pygut.base import Screen, Timer
 
 class Application:
     '''Basic application window. Shows an optional start_screen on startup.'''
-    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 30, flags: int = 0, maximize: bool = True, vsync: int = 0, handle_init: bool = True):
+    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 60, flags: int = 0, maximize: bool = True, vsync: int = 0, handle_init: bool = True, handle_bg: bool = True):
         if handle_init:
             pygame.init()
         
@@ -19,20 +19,22 @@ class Application:
         self.clock = pygame.time.Clock()
         self.running = True
         
-        self.screen: Screen | None = start_screen
+        self.handle_bg = handle_bg
+        
+        self.screen = start_screen
         self.timers: list[Timer] = []
         
         self.mouse_down = False
         self.mouse_just_down = False
        
-    def update(self, dt: float, **kwargs):
+    def update(self, **kwargs):
         '''Called once per frame. By default updates all of the entities in self.screen as well as count down all of its timers.
            mouse_buttons, m1_just_down, and keys_pressed are passed through kwargs. Override in a subclass to add extra functionality.'''
         if not self.screen is None:
-            self.screen.update(dt=dt)
+            self.screen.update(**kwargs)
         
         for t in self.timers:
-            t.countdown(dt)
+            t.countdown(kwargs['dt'])
     
     def _step(self, dt: float):
         for event in pygame.event.get():
@@ -50,16 +52,10 @@ class Application:
                 self.mouse_down = False
                 self.mouse_just_down = False
             
-            if type(self.screen.bg) is pygame.color.Color:
-                self.showing.fill(self.screen.bg, self.screen.get_rect(center=(self.showing.get_width() / 2,
-                                                                                self.showing.get_height() / 2)))
-            elif type(self.screen.bg) is pygame.Surface:
-                self.showing.blit(self.screen.bg, (self.showing.get_width() / 2 - self.screen.get_width(),
-                                                    self.showing.get_height() / 2 - self.screen.get_height()))
-            
-            self.update(dt, mouse_buttons=mouse_buttons, m1_just_down=self.mouse_just_down, keys_pressed=pygame.key.get_pressed(),
+            self.update(dt=dt, mouse_buttons=mouse_buttons, m1_just_down=self.mouse_just_down, keys_pressed=pygame.key.get_pressed(),
                             game_elements=self.screen.game_elements, ui_elements=self.screen.ui_elements)
-            updated = self.screen.elements.draw(self.screen)
+            updated = (self.screen.reg_elements.draw(self.showing, self.screen.bg if self.handle_bg else None)
+                     + self.screen.dirty_elements.draw(self.showing, self.screen.bg if self.handle_bg else None))
             pygame.display.update(updated)
         else:
             self.showing.fill((0, 0, 0))
@@ -77,7 +73,7 @@ class Application:
         
 class WebApplication(Application):
     '''async_run() function is asynchronously defined. Call from asyncio.run() to run a web build of the game.'''
-    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 30, flags: int = 0, vsync: int = 0, handle_init: bool = True):
+    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 60, flags: int = 0, vsync: int = 0, handle_init: bool = True):
         super().__init__(screen_size, start_screen, fps, flags, False, vsync, handle_init)
         
     async def async_run(self):

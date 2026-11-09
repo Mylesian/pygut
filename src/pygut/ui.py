@@ -1,12 +1,12 @@
 from typing import Sequence
 
 import pygame
-from base import UIElement, Screen
+from pygut.base import UIElement, Screen
 
 class Menu(Screen):
     '''A screen comprised of entirely UIElements.
        Can display things to the user, or have buttons that the user can click to interact with.
-       overlay param dims the screen and overlays the UIElements on top of the current screen instead of fully replacing it.
+       Pass overlay to **kwargs to turn the Menu into an overlayed screen instead of replacing the current one.
        Note: overlay param currently does not have implementation. That will be added in a future update.'''
     def __init__(self, bgcolor, elements: Sequence[UIElement], **kwargs):
         super().__init__(bgcolor, elements, **kwargs)

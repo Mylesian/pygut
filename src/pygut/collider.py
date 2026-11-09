@@ -1,5 +1,5 @@
 import pygame
-from base import Collider
+from pygut.base import Collider
 
 class RectCollider(Collider):
     def __init__(self, x: float, y: float, w: float, h: float):
@@ -9,9 +9,9 @@ class RectCollider(Collider):
         
     def _truncated_line(self, other: Collider) -> pygame.Vector2:
         vect = other.pos - self.pos
-        line = self.bounds.clipline(self.pos.x, self.pos.y, vect.x, vect.y)
+        line = self.bounds.clipline(self.pos.x, self.pos.y, self.pos.x + vect.x, self.pos.y + vect.y)
         
-        return pygame.math.Vector2(line[1][0] - line[0][0], line[1][1] - line[0][1]) # type: ignore
+        return pygame.math.Vector2(line[0][0] - line[1][0], line[0][1] - line[1][1])
     
 class CircleCollider(Collider):
     def __init__(self, x: float, y: float, r: float):
