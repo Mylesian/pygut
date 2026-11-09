@@ -8,10 +8,10 @@ description = "pygame utility package so I don't have to rewrite all my code eve
 authors = [
   { name="Myles Godfrey", email="mylesgodfrey17@gmail.com" },
 ]
-version = "4.0.0"
-requires-python = ">=3.9"
+version = "4.1.0"
+requires-python = ">=3.10"
 dependencies = [
-    "pygame"
+    "pygame-ce"
 ]
 license = "MIT"
 license-files = ["LICEN[CS]E*"]

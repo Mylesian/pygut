@@ -1,19 +1,13 @@
 import pygame
-from pygame._sdl2 import Window
-import asyncio
 from pygut.base import Screen, Timer
 
 class Application:
     '''Basic application window. Shows an optional start_screen on startup.'''
-    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 60, flags: int = 0, maximize: bool = True, vsync: int = 0, handle_init: bool = True, handle_bg: bool = True):
+    def __init__(self, screen_size: tuple[int, int], title: str = 'Pygame Window', start_screen: Screen | None = None, fps: int = 60, resizable: bool = True, maximize: bool = False, vsync: int = 0, handle_init: bool = True, handle_bg: bool = True):
         if handle_init:
             pygame.init()
         
-        if maximize:
-            self.showing = pygame.display.set_mode(screen_size, flags | pygame.RESIZABLE, 0, 0, vsync)
-            Window.from_display_module().maximize()
-        else:
-            self.showing = pygame.display.set_mode(screen_size, flags, 0, 0, vsync)
+        self.win = pygame.Window(title, screen_size, resizable=resizable,maximized=maximize)
         
         self.fps = fps
         self.clock = pygame.time.Clock()
@@ -68,20 +62,5 @@ class Application:
             self._step(dt)
         
             self.clock.tick(self.fps)
-            
-        pygame.quit()
-        
-class WebApplication(Application):
-    '''async_run() function is asynchronously defined. Call from asyncio.run() to run a web build of the game.'''
-    def __init__(self, screen_size: tuple[int, int], start_screen: Screen | None = None, fps: int = 60, flags: int = 0, vsync: int = 0, handle_init: bool = True):
-        super().__init__(screen_size, start_screen, fps, flags, False, vsync, handle_init)
-        
-    async def async_run(self):
-        while self.running:
-            dt = 1 / self.fps
-            self._step(dt)
-        
-            self.clock.tick(self.fps)
-            await asyncio.sleep(0)
             
         pygame.quit()
