@@ -48,11 +48,11 @@ class Application:
             
             self.update(dt=dt, mouse_buttons=mouse_buttons, m1_just_down=self.mouse_just_down, keys_pressed=pygame.key.get_pressed(),
                             game_elements=self.screen.game_elements, ui_elements=self.screen.ui_elements)
-            updated = (self.screen.reg_elements.draw(self.showing, self.screen.bg if self.handle_bg else None)
-                     + self.screen.dirty_elements.draw(self.showing, self.screen.bg if self.handle_bg else None))
+            updated = (self.screen.reg_elements.draw(self.win.get_surface(), self.screen.bg if self.handle_bg else None)
+                     + self.screen.dirty_elements.draw(self.win.get_surface(), self.screen.bg if self.handle_bg else None))
             pygame.display.update(updated)
         else:
-            self.showing.fill((0, 0, 0))
+            self.win.get_surface().fill((0, 0, 0))
             pygame.display.flip()
 
     def run(self):
