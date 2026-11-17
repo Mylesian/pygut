@@ -1,47 +1,62 @@
 import sys
-from typing import Collection, Sequence, Union, overload
+from typing import Collection, Union
 import pygame
-from pygame.sprite import Sprite, DirtySprite, LayeredDirty, LayeredUpdates
+from pygame.sprite import Sprite, LayeredUpdates
 from pygame.font import Font
+import pygut
+from pygut._internal import add_to_dict, remove_from_dict
+import pygut.collider
+
+_STATE = 0
+_ACTION = 1
+
+Point = Union[pygame.Vector2, tuple[int,int], list[int,int]]
 
 class Element(Sprite):
     '''Root of the entity hierarchy. Defines a basic entity that is drawn to the screen every frame.
        Optional collider param to specify interactions with other entities. Without a collider the object has no physics.'''
-    def __init__(self, x: float, y: float, image: pygame.Surface, collider: 'Collider | None' = None):
+    def __init__(self, pos: Point, image: pygame.Surface, collider: pygut.collider.Collider | None = None):
         super().__init__()
+        
+        if isinstance(pos, (tuple, list)):
+            x = pos[0]
+            y = pos[1]
+        else:
+            x = pos.x
+            y = pos.y
         
         self.image = image
         self.rect = image.get_rect(center=(x, y))
+        self.pos = pygame.Vector2(pos)
         
         if not collider is None:
             self.collider = collider
             
         self.actions = {}
                     
-    def add_action(self, key: int, action):
-        self.actions[key] = action
+    def add_action(self, key: int, state: int, action):
+        add_to_dict(self.actions, key, [state, action])
     
     def update(self, *args, **kwargs):
-        '''Called once per frame by the group self sprite is in. dt is passed into kwargs, use when overriding for time-based updates.
-            If the sprite is changed, set dirty=1 to redraw.'''
-        for key, action in self.actions.items():
-            if kwargs['keys_pressed'][key]: action()
+        '''Called once per frame by the group self sprite is in. dt is passed into kwargs, use when overriding for time-based updates.'''
     
     def move(self, dist):
         self.rect.move_ip(dist)
-    
-class DirtyElement(Element, DirtySprite):
-    pass
+        self.pos += dist
 
 class GameElement(Element):
     '''Object with a collider that is drawn to the screen. Mainly a class to be distinct from UIElement class for UI elements.'''
-    def __init__(self, x: float, y: float, image: pygame.Surface, collider: 'Collider'):
-        super().__init__(x, y, image, collider)
+    def __init__(self, pos: Point, image: pygame.Surface, collider: pygut.collider.Collider):
+        super().__init__(pos, image, collider)
+    
+    def move(self, dist):
+        super().move(dist)
+        self.collider.move(dist)
     
 class UIElement(Element):
     '''Object to be drawn to the screen above all of the GameObjects. Image to be rendered may be a string passed into render parameter.
        If render is a string, also pass the arguments font and font_color into kwargs for use.'''
-    def __init__(self, x: float, y: float, render: pygame.Surface | str, **kwargs):
+    def __init__(self, pos: Point, render: pygame.Surface | str, **kwargs):
         if isinstance(render, str):
             try:
                 font: Font = kwargs['font']
@@ -52,38 +67,17 @@ class UIElement(Element):
                 sys.exit()
         else: image = render
         
-        super().__init__(x, y, image)
-        
-class DirtyGameElement(GameElement, DirtyElement):
-    pass
-class DirtyUIElement(UIElement, DirtyElement):
-    pass
+        super().__init__(pos, image)
 
-class Collider:
-    '''Base hitbox object to store the position of an object. Subclasses can add functionality such as a physics engine.
-       x,y is the center of the object.'''
-    def __init__(self, x: float, y: float):
-        self.pos = pygame.math.Vector2(x, y)
-    
-    def collides(self, other: 'Collider') -> bool:
-        self_vect = self._truncated_line(other)
-        other_vect = other._truncated_line(self)
-        if self.pos.x < other.pos.x:
-            return self.pos.x + self_vect.x >= other.pos.x + other_vect.x
-        else:
-            return self.pos.x + self_vect.x <= other.pos.x + other_vect.x
-    
-    def _truncated_line(self, other: 'Collider') -> pygame.math.Vector2: ...
 
 class Screen(pygame.Surface):
     '''An object to be drawn to the screen. Has a collection of GameElements and UIElements that are drawn to the screen.'''
     def __init__(self, bg: pygame.Color | tuple | pygame.Surface, elements: Collection[Element] | None = None, **kwargs):
-        self.dirty_elements = LayeredDirty()
-        self.reg_elements = LayeredUpdates()
+        self.elements = LayeredUpdates()
         self.game_elements = []
         self.ui_elements = []
         
-        size: tuple[int, int] = pygame.display.get_window_size()
+        size: tuple[int, int] = pygut.app.win.size
         try:
             if kwargs['overlay'] == True:
                 size = kwargs['size']
@@ -92,51 +86,92 @@ class Screen(pygame.Surface):
             super().__init__(size)
         
         if isinstance(bg, (pygame.Color, tuple)):
-            self.bg = pygame.Surface(size)
-            self.bg.fill(bg)
+            self.fill(bg)
         else:
-            self.bg = bg
+            self.blit(bg, (0,0))
+        
+        self.k_down_actions = {}
+        self.k_up_actions = {}
+        self.k_held_actions = {}
         
         if not elements is None:
             for e in elements:
                 self.add(e)
     
     def update(self, **kwargs):
-        self.reg_elements.update(**kwargs)
-        self.dirty_elements.update(**kwargs)
+        just_pressed = pygame.key.get_just_pressed()
+        just_released = pygame.key.get_just_released()
+        pressed = pygame.key.get_pressed()
+        
+        for key in self.k_down_actions.keys():
+            if just_pressed[key]:
+                for action in self.k_down_actions[key]:
+                    action()
+        
+        for key in self.k_up_actions.keys():
+            if just_released[key]:
+                for action in self.k_up_actions[key]:
+                    action()
+        
+        for key in self.k_held_actions.keys():
+            if pressed[key]:
+                for action in self.k_held_actions[key]:
+                    action()
+        
+        self.elements.update(**kwargs)
+    
+    def add_action(self, key, state, action):
+        match state:
+            case pygut.K_PRESSED:
+                add_to_dict(self.k_down_actions, key, action)
+            case pygut.K_RELEASED:
+                add_to_dict(self.k_up_actions, key, action)
+            case pygut.K_HELD:
+                add_to_dict(self.k_held_actions, key, action)
+    
+    def remove_action(self, key, state, action):
+        match state:
+            case pygut.K_PRESSED:
+                remove_from_dict(self.k_down_actions, key, action)
+            case pygut.K_RELEASED:
+                remove_from_dict(self.k_down_actions, key, action)
+            case pygut.K_HELD:
+                remove_from_dict(self.k_held_actions, key, action)
     
     def add(self, e: Element):
-        args = {}
-        if isinstance(e, UIElement): 
-            args['layer'] = 1
+        if isinstance(e, UIElement):
             self.ui_elements.append(e)
-        else: self.game_elements.append(e)
-        
-        if isinstance(e, DirtyElement):
-            self.dirty_elements.add(e, args)
-        else:
-            self.reg_elements.add(e, args)
+            self.elements.add(e, layer=1)
+        else: 
+            self.game_elements.append(e)
+            self.elements.add(e)
+            
+        for button in e.actions.keys():
+            for action in e.actions[button]:
+                self.add_action(button, action[_STATE], action[_ACTION])
     
     def add_all(self, elements: Collection[Element]):
         for e in elements:
             self.add(e)
     
-    def remove(self, elements: Collection[Element]):
-        self.reg_elements.remove(elements)
-        self.dirty_elements.remove(elements)
-        
-        for e in elements:
+    def remove(self, e: Element):
+        self.elements.remove(e)
+        try:
             if isinstance(e, GameElement):
-                try: self.game_elements.remove(e)
-                except ValueError: pass
+                self.game_elements.remove(e)
             else:
-                try: self.ui_elements.remove(e)
-                except ValueError: pass
+                self.ui_elements.remove(e)
+        except ValueError: pass
+        
+    def remove_all(self, elements: Collection[Element]):
+        for e in elements:
+            self.remove(e)
 
 class Timer:
-    '''Class that defines a timer that ticks down a set number of seconds. Updates an optional dependent when the timer is done.'''
-    def __init__(self, time: float, start_max: bool, dependent: 'Dependent | None' = None):
-        self.dependent = dependent
+    '''Class that defines a timer that ticks down a set number of seconds. Calls an optional method when the timer is done.'''
+    def __init__(self, time: float, start_max: bool, on_complete = None, on_reset = None):
+        self.on_complete = on_complete
+        self.on_reset = on_reset
         
         self.default_time = time
         
@@ -146,12 +181,15 @@ class Timer:
             self.time = 0
         
     def countdown(self, dt: float) -> bool:
+        if self.time == 0: return
+        
         self.time -= dt
         if self.time > 0:
             return False
         
-        if not self.dependent == None:
-            self.dependent.action()
+        self.time = 0
+        if self.on_complete is not None:
+            self.on_complete()
         return True
 
     def reset(self, time: float | None = None):
@@ -159,10 +197,6 @@ class Timer:
             self.time = self.default_time
         else:
             self.time = time
-
-class Dependent:
-    '''Object that is notified to perform an action when its timer finishes counting down.'''
-    def __init__(self, action, time: int, timer_list: list[Timer]):
-        self.action = action
-        depends_on = Timer(time, True)
-        timer_list.append(depends_on)
+        
+        if self.on_reset is not None:
+            self.on_reset()

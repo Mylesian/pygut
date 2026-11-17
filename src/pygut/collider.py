@@ -1,5 +1,15 @@
 import pygame
-from pygut.base import Collider
+
+class Collider:
+    '''Base hitbox object to store the position of an object. Subclasses can add functionality such as a physics engine.
+       x,y is the center of the object.'''
+    def __init__(self, x: float, y: float):
+        self.pos = pygame.Vector2(x, y)
+    
+    def collides(self, other: 'Collider') -> bool: ...
+        
+    def move(self, dist):
+        self.pos += dist
 
 class RectCollider(Collider):
     def __init__(self, x: float, y: float, w: float, h: float):
@@ -7,19 +17,10 @@ class RectCollider(Collider):
         
         self.bounds = pygame.Rect(x - w/2, y - h/2, w, h)
         
-    def _truncated_line(self, other: Collider) -> pygame.Vector2:
-        vect = other.pos - self.pos
-        line = self.bounds.clipline(self.pos.x, self.pos.y, self.pos.x + vect.x, self.pos.y + vect.y)
-        
-        return pygame.math.Vector2(line[0][0] - line[1][0], line[0][1] - line[1][1])
+    def move(self, dist):
+        super().move(dist)
+        self.bounds.move_ip(dist)
     
-class CircleCollider(Collider):
-    def __init__(self, x: float, y: float, r: float):
-        super().__init__(x, y)
-        self.r = r
-
-    def _truncated_line(self, other: Collider) -> pygame.Vector2:
-        vect = other.pos - self.pos
-        vect.scale_to_length(self.r)
-        
-        return vect
+    def collides(self, other: Collider):
+        if isinstance(other, RectCollider):
+            return self.bounds.colliderect(other.bounds)

@@ -2,6 +2,7 @@ from typing import Sequence
 
 import pygame
 from pygut.base import UIElement, Screen
+import pygut
 
 class Menu(Screen):
     '''A screen comprised of entirely UIElements.
@@ -17,5 +18,5 @@ class Button(UIElement):
         self.action = action
         
     def update(self, *args, **kwargs):
-        if kwargs['m1_just_down'] == True and self.rect.collidepoint(pygame.mouse.get_pos()):
-            return self.action()
+        if pygame.mouse.get_just_pressed()[pygut.M1] == True and self.rect.collidepoint(pygame.mouse.get_pos()):
+            self.action()
