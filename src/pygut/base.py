@@ -1,10 +1,11 @@
 import sys
+from types import FunctionType
 from typing import Collection, Union
 import pygame
 from pygame.sprite import Sprite, LayeredUpdates
 from pygame.font import Font
 import pygut
-from pygut._internal import add_to_dict, remove_from_dict
+from pygut._internal import add_to_dict, remove_from_dict, check_actions
 import pygut.collider
 
 _STATE = 0
@@ -69,7 +70,6 @@ class UIElement(Element):
         
         super().__init__(pos, image)
 
-
 class Screen(pygame.Surface):
     '''An object to be drawn to the screen. Has a collection of GameElements and UIElements that are drawn to the screen.'''
     def __init__(self, bg: pygame.Color | tuple | pygame.Surface, elements: Collection[Element] | None = None, **kwargs):
@@ -99,24 +99,7 @@ class Screen(pygame.Surface):
                 self.add(e)
     
     def update(self, **kwargs):
-        just_pressed = pygame.key.get_just_pressed()
-        just_released = pygame.key.get_just_released()
-        pressed = pygame.key.get_pressed()
-        
-        for key in self.k_down_actions.keys():
-            if just_pressed[key]:
-                for action in self.k_down_actions[key]:
-                    action()
-        
-        for key in self.k_up_actions.keys():
-            if just_released[key]:
-                for action in self.k_up_actions[key]:
-                    action()
-        
-        for key in self.k_held_actions.keys():
-            if pressed[key]:
-                for action in self.k_held_actions[key]:
-                    action()
+        check_actions(self)
         
         self.elements.update(**kwargs)
     
@@ -169,7 +152,7 @@ class Screen(pygame.Surface):
 
 class Timer:
     '''Class that defines a timer that ticks down a set number of seconds. Calls an optional method when the timer is done.'''
-    def __init__(self, time: float, start_max: bool, on_complete = None, on_reset = None):
+    def __init__(self, time: float, start_max: bool, on_complete: FunctionType | None = None, on_reset: FunctionType | None = None):
         self.on_complete = on_complete
         self.on_reset = on_reset
         
